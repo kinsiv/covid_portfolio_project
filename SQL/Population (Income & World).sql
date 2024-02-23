@@ -21,7 +21,7 @@ BEGIN
 			WHERE location REGEXP '^[W][o-q][l-r]{2}[d]$' AND date BETWEEN NEW.date AND CURDATE()
 			SET @@total_days = @@total_days - 1
 			SET @@date_counter = DATEADD(day, 1, @@date_counter);
-		ELSEIF @@date_counter!=NEW.date THEN
+		ELSE
 				UPDATE death_samples SET date=@@date_counter, location=NEW.location, population=MAX(population), total_cases=SUM(new_cases), total_deaths=SUM(new_deaths)
 				WHERE location REGEXP '^[^A-VX-Z]%*[l-r]{2}*' AND date BETWEEN NEW.date AND CURDATE()
 				SET @@total_days = @@total_days - 1
@@ -44,7 +44,7 @@ BEGIN
 			WHERE location REGEXP '^[W][o-q][l-r]{2}[d]$' AND date BETWEEN OLD.date AND CURDATE()
 			SET @@total_days = @@total_days - 1
 			SET @@date_counter = DATEADD(day, 1, @@date_counter);
-		ELSEIF @@date_counter!=OLD.date THEN
+		ELSE
 				UPDATE death_samples SET date=@@date_counter, location=OLD.location, population=MAX(population), total_cases=SUM(new_cases), total_deaths=SUM(new_deaths)
 				WHERE location REGEXP '^[^A-VX-Z]%*[l-r]{2}*' AND date BETWEEN OLD.date AND CURDATE()
 				SET @@total_days = @@total_days - 1
