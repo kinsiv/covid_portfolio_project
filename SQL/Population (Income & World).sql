@@ -26,8 +26,6 @@ BEGIN
 				WHERE location REGEXP '^[^A-VX-Z]%*[l-r]{2}*' AND date BETWEEN NEW.date AND CURDATE()
 				SET @@total_days = @@total_days - 1
 				SET @@date_counter = DATEADD(day, 1, @@date_counter);
-		ELSE
-			RETURN;
 END IF;
 
 
@@ -49,8 +47,6 @@ BEGIN
 				WHERE location REGEXP '^[^A-VX-Z]%*[l-r]{2}*' AND date BETWEEN OLD.date AND CURDATE()
 				SET @@total_days = @@total_days - 1
 				SET @@date_counter = DATEADD(day, 1, @@date_counter);
-		ELSE
-			RETURN;
 END IF;
 
 
