@@ -9,6 +9,7 @@ How they work: 2 session variable counters are created, @@total_days for how man
 until the current date.These counters enable the statement to update each record until today. First IF is to start the sequence if the new record date isn't today's date. 
 Also, determines if activiation is required by checking if attributes affecting running totals are updated to maintain optimal server performance.
 Second IF keeps the update happening until the trigger reaches today. REGEXP = 'World' location result. */
+BEGIN TRANSACTION;
 CREATE TRIGGER CS.world_record_updates
 AFTER INSERT, UPDATE ON death_samples
 FOR EACH ROW
@@ -27,9 +28,9 @@ BEGIN
 				SET @@total_days = @@total_days - 1
 				SET @@date_counter = DATEADD(day, 1, @@date_counter);
 END IF;
+COMMIT TRANSACTION;
 
-
-
+BEGIN TRANSACTION;
 CREATE TRIGGER CS.world_record_updates
 AFTER DELETE ON death_samples
 FOR EACH ROW
@@ -48,40 +49,45 @@ BEGIN
 				SET @@total_days = @@total_days - 1
 				SET @@date_counter = DATEADD(day, 1, @@date_counter);
 END IF;
-
+COMMIT TRANSACTION;
 
 
 /* SECOND SECTION: Employing data mining tactics to gather evidence for drawing conclusions about the impact of COVID worldwide.
 
 Monthly totals and grand total. Calculates total days and years COVID has been afflicting the population. Smooth attributes used to include a minorly inaccurate 
 (<2%), yet precise totals & grand total - doubles as a method of reducing randomness and error in gathered evidence. */
+BEGIN TRANSACTION;
 SELECT month_digit, CONVERT(BIGINT,SUM(new_cases_smoothed)) AS totalCases, CONVERT(BIGINT,SUM(new_deaths_smoothed)) AS totalDead, (SELECT COUNT(DAY(date)) 
 FROM death_samples WHERE total_cases!=0 AND location LIKE 'Wor%') AS totalDaysWithCOVID,(SELECT COUNT(DISTINCT YEAR) FROM death_samples 
 WHERE total_cases!=0 AND location LIKE '_orl_') AS totalYearsWithCOVID
 FROM death_samples WHERE location LIKE 'W___d' GROUP BY month_digit WITH ROLLUP ORDER BY month_digit;
-
+COMMIT TRANSACTION;
 
 -- Total vaccinations and people vaccinated. Percentage of vaccinations utlized, population fully vaccinated, and boosters.
+BEGIN TRANSACTION;
 SELECT ds.location, MAX(total_vaccinations) AS totalVaccinations, MAX(people_vaccinated) AS totalPeopleVaccinated, 
 	ROUND(MAX(people_vaccinated)/NULLIF(MAX(total_vaccinations)-MAX(total_boosters),0)*100, 2) AS percentVaccinationsUtilized,
 	CAST(MAX(people_fully_vaccinated)/NULLIF(MAX(people_vaccinated),0)*100 AS DECIMAL(4,2)) AS percentFullyVaccinated,
 	CAST(MAX(total_boosters)/NULLIF(MAX(total_vaccinations),0)*100 AS DECIMAL(4,2)) AS percentBoostersOfVaccinations
 FROM vaccination_samples vs RIGHT OUTER JOIN death_samples ds ON ds.location = vs.location WHERE ds.location LIKE '%rld'
 GROUP BY ds.location;
-
+COMMIT TRANSACTION;
 
 -- Monthly, yearly, and overall totals for infections & deaths.
+BEGIN TRANSACTION;
 SELECT location, FLOOR(SUM(new_deaths_smoothed)) AS totalDeaths, CAST(SUM(new_cases_smoothed) AS INT) AS totalInfected, 
 	ROUND(SUM(new_cases_smoothed)/COUNT(DISTINCT month_digit),0) AS monthlyInfections, ROUND(SUM(new_deaths_smoothed)/COUNT(DISTINCT month_digit),0) AS monthlyDeaths,
 	ROUND(SUM(new_cases_smoothed)/COUNT(DISTINCT year),0) AS yearlyInfections, ROUND(SUM(new_deaths_smoothed)/COUNT(DISTINCT year),0) AS yearlyDeaths
 FROM death_samples WHERE location LIKE '__rld' GROUP BY location 
-
+COMMIT TRANSACTION;
 
 -- Population impact statistics. Percentages are included to determine death and infection toll. Mortality rate of those who experience death after infection.
+BEGIN TRANSACTION;
 SELECT location, population, CONVERT(DECIMAL(4,2),SUM(new_deaths_smoothed)/MAX(population)*100) AS percentOfPopulationDead, 
 	CONVERT(DECIMAL(4,2),SUM(new_cases_smoothed)/MAX(population)*100) AS percentOfPopulationInfected, 
 	CONVERT(DECIMAL(4,2),SUM(new_deaths_smoothed)/NULLIF(SUM(new_cases_smoothed),0)*10) AS mortalityRate
 FROM death_samples WHERE location='World' GROUP BY location, population;
+COMMIT TRANSACTION;
 GO
 
 
@@ -91,23 +97,29 @@ Included are 3 tiers: High, Upper Middle, Lower Middle, Low. The corresponding d
 
 Total vaccinations & boosters, people vaccinated, and people fully vaccinated. 
 Percentage of vaccinations utlized, population fully vaccinated, and boosters. */
+BEGIN TRANSACTION;
 SELECT ds.location, MAX(total_vaccinations) AS totalVaccinations, MAX(people_vaccinated) AS totalPeopleVaccinated, MAX(people_fully_vaccinated) AS totalPeopleFullyVaccinated,
 	MAX(total_boosters) AS totalBoosters, ROUND(MAX(people_vaccinated)/NULLIF(MAX(total_vaccinations)-MAX(total_boosters),0)*100, 2) AS percentVaccinationsUtilized,
 	CAST(MAX(people_fully_vaccinated)/NULLIF(MAX(people_vaccinated),0)*100 AS DECIMAL(4,2)) AS percentFullyVaccinated,
 	CAST(MAX(total_boosters)/NULLIF(MAX(total_vaccinations),0)*100 AS DECIMAL(4,2)) AS percentBoostersOfVaccinations
 FROM vaccination_samples vs RIGHT OUTER JOIN death_samples ds ON ds.location = vs.location WHERE ds.location LIKE '%income%'
 GROUP BY ds.location ORDER BY totalPeopleVaccinated DESC;
+COMMIT TRANSACTION;
 
 -- Monthly, yearly, and overall totals. Population attribute doesn't have grand total, which is dissimlar to the others. Total dead & total infected measured.
+BEGIN TRANSACTION;
 SELECT location, MAX(population) AS population_no_grandtotal, FLOOR(SUM(new_deaths_smoothed)) AS totalDeaths, CAST(SUM(new_cases_smoothed) AS INT) AS totalInfected, 
 	ROUND(SUM(new_cases_smoothed)/COUNT(DISTINCT month_digit),0) AS monthlyInfections, ROUND(SUM(new_deaths_smoothed)/COUNT(DISTINCT month_digit),0) AS monthlyDeaths,
 	ROUND(SUM(new_cases_smoothed)/COUNT(DISTINCT year),0) AS yearlyInfections, ROUND(SUM(new_deaths_smoothed)/COUNT(DISTINCT year),0) AS yearlyDeaths
 FROM death_samples WHERE location LIKE '%income%' GROUP BY location WITH ROLLUP ORDER BY totalInfected DESC;
+COMMIT TRANSACTION;
 
 
 -- Population impact statistics. Percentages are included to determine an income tiers's death and infection toll. Mortality rate of those who experience death after infection.
+BEGIN TRANSACTION;
 SELECT location, MAX(population) AS population, CONVERT(DECIMAL(4,2),SUM(new_deaths_smoothed)/MAX(population)*100) AS percentOfPopulationDead, 
 	CONVERT(DECIMAL(4,2),SUM(new_cases_smoothed)/MAX(population)*100) AS percentOfPopulationInfected, 
 	CONVERT(DECIMAL(4,2),SUM(new_deaths_smoothed)/NULLIF(SUM(new_cases_smoothed),0)*10) AS mortalityRate
 FROM death_samples WHERE location LIKE '%income%' GROUP BY location, population ORDER BY mortalityRate DESC;
+COMMIT TRANSACTION;
 GO
